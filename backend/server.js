@@ -3,6 +3,8 @@ import cors from "cors";
 import "dotenv/config";
 import connectDb from "./config/db.js";
 import cloudinary from "./config/cloudinary.js";
+import userRoutes from "./routes/userRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
 
 // App Config
 const app = express();
@@ -15,6 +17,9 @@ app.use(express.json());
 app.use(cors());
 
 // API Endpoints
+app.use("/api/users", userRoutes);
+app.use("/api/products", productRoutes);
+
 app.get("/", (req, res) => {
   res.send("Welcome back to our API...");
 });

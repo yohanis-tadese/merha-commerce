@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const connectDb = async () => {
   try {
-    await mongoose.connect(`${process.env.DATABASE_URI}/meriha-commerce`);
+    await mongoose.connect(`${process.env.DATABASE_URI}`);
 
     console.log("Database connected successfully");
 
