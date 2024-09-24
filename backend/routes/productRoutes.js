@@ -6,11 +6,12 @@ import {
   getProductById,
   updateProduct,
   deleteProduct,
+  uploadProductImages,
 } from "../controllers/productController.js";
 
 const productRouter = express.Router();
 
-productRouter.post("/", createProduct);
+productRouter.post("/", uploadProductImages, createProduct);
 productRouter.get("/", getProducts);
 productRouter.get("/:id", getProductById);
 productRouter.put("/:id", updateProduct);

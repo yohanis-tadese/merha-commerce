@@ -1,11 +1,17 @@
-// Create a new product
+import cloudinary from "../config/cloudinary-config.js";
+import upload from "../config/multer-config.js";
+import Product from "../models/productModel.js";
+
+// Middleware for handling multiple uploads (1 cover + up to 3 images)
+const uploadProductImages = upload.fields([{ name: "images", maxCount: 3 }]);
+
+// Create a new product with image uploads
 const createProduct = async (req, res) => {
   try {
     const {
       name,
       description,
       price,
-      image,
       category,
       subCategory,
       sizes,
@@ -13,17 +19,50 @@ const createProduct = async (req, res) => {
       date,
     } = req.body;
 
+    const parsedSizes = JSON.parse(sizes);
+
+    // Store uploaded image URLs
+    const imagesUrl = [];
+
+    // Upload additional images to Cloudinary
+    if (req.files.images) {
+      // Create an array of promises for each upload
+      const uploadPromises = req.files.images.map((file) => {
+        return new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: "products",
+              transformation: { width: 500, height: 500, crop: "limit" },
+            },
+            (error, result) => {
+              if (error) {
+                return reject(error);
+              }
+              resolve(result.secure_url);
+            }
+          );
+
+          stream.end(file.buffer);
+        });
+      });
+
+      // Wait for all uploads to complete
+      imagesUrl.push(...(await Promise.all(uploadPromises)));
+    }
+
+    // Create a new product with the uploaded image URLs
     const newProduct = new Product({
       name,
       description,
       price,
-      image,
+      images: imagesUrl,
       category,
       subCategory,
-      sizes,
+      sizes: parsedSizes,
       bestseller,
       date,
     });
+
     const product = await newProduct.save();
 
     return res.status(201).json({
@@ -53,6 +92,7 @@ const updateProduct = async (req, res) => {};
 const deleteProduct = async (req, res) => {};
 
 export {
+  uploadProductImages,
   createProduct,
   getProducts,
   getProductById,
