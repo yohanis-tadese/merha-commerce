@@ -3,10 +3,10 @@ import validator from "validator";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-// Function to generate token
-const createToken = (userId) => {
-  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: "1h",
+// Function to generate token with role
+const createToken = (userId, role) => {
+  const token = jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
+    expiresIn: "10d",
   });
   return token;
 };
@@ -17,7 +17,7 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     // Check if the user exists
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, role: "user" });
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -34,8 +34,8 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Generate a token for the user
-    const token = createToken(user._id);
+    // Generate a token with the role included
+    const token = createToken(user._id, user.role);
 
     return res.status(200).json({
       success: true,
@@ -93,7 +93,7 @@ const registerUser = async (req, res) => {
 
     //Save the user in the database
     const user = await newUser.save();
-    const token = createToken(user._id);
+    const token = createToken(user._id, user.role);
 
     return res.status(201).json({
       success: true,
@@ -110,6 +110,42 @@ const registerUser = async (req, res) => {
 };
 
 //Route for admin login
-const loginAdmin = (req, res) => {};
+const loginAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const admin = await User.findOne({ email, role: "admin" });
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // Compare provided password
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // Generate a token with the role included
+    const token = createToken(admin._id, admin.role);
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin logged in successfully",
+      token,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error logging in",
+      error: error.message,
+    });
+  }
+};
 
 export { loginUser, registerUser, loginAdmin };

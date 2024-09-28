@@ -6,15 +6,16 @@ import {
   getProductById,
   updateProduct,
   deleteProduct,
-  uploadProductImages,
 } from "../controllers/productController.js";
+import upload from "../middleware/multer.js";
+import adminAuth from "../middleware/adminAuth.js";
 
 const productRouter = express.Router();
 
-productRouter.post("/", uploadProductImages, createProduct);
-productRouter.get("/", getProducts);
+productRouter.post("/", adminAuth, upload, createProduct);
+productRouter.get("/", adminAuth, getProducts);
 productRouter.get("/:id", getProductById);
 productRouter.put("/:id", updateProduct);
-productRouter.delete("/:id", deleteProduct);
+productRouter.delete("/:id", adminAuth, deleteProduct);
 
 export default productRouter;

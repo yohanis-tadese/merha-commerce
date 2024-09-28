@@ -1,9 +1,5 @@
-import cloudinary from "../config/cloudinary-config.js";
-import upload from "../config/multer-config.js";
 import Product from "../models/productModel.js";
-
-// Middleware for handling multiple uploads (1 cover + up to 3 images)
-const uploadProductImages = upload.fields([{ name: "images", maxCount: 3 }]);
+import cloudinary from "../config/cloudinary.js";
 
 // Create a new product with image uploads
 const createProduct = async (req, res) => {
@@ -16,59 +12,52 @@ const createProduct = async (req, res) => {
       subCategory,
       sizes,
       bestseller,
-      date,
     } = req.body;
 
-    const parsedSizes = JSON.parse(sizes);
-
-    // Store uploaded image URLs
-    const imagesUrl = [];
-
-    // Upload additional images to Cloudinary
-    if (req.files.images) {
-      // Create an array of promises for each upload
-      const uploadPromises = req.files.images.map((file) => {
-        return new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            {
-              folder: "products",
-              transformation: { width: 500, height: 500, crop: "limit" },
-            },
-            (error, result) => {
-              if (error) {
-                return reject(error);
-              }
-              resolve(result.secure_url);
-            }
-          );
-
-          stream.end(file.buffer);
-        });
+    // Check if more than 3 images are uploaded
+    if (req.files.length > 4) {
+      return res.status(400).json({
+        success: false,
+        message: "You can upload a maximum of 4 images.",
       });
-
-      // Wait for all uploads to complete
-      imagesUrl.push(...(await Promise.all(uploadPromises)));
     }
 
-    // Create a new product with the uploaded image URLs
-    const newProduct = new Product({
+    // Array to hold image URLs
+    const imagesUrl = [];
+
+    // Process uploaded images
+    if (req.files) {
+      for (const file of req.files) {
+        // Upload each file to Cloudinary
+        const uploadResponse = await cloudinary.uploader.upload(file.path, {
+          folder: "products",
+          transformation: [{ width: 500, height: 500, crop: "limit" }],
+          public_id: `product-${Date.now()}-${file.originalname}`,
+        });
+        imagesUrl.push(uploadResponse.secure_url);
+      }
+    }
+
+    // Create a new product object
+    const productData = {
       name,
       description,
       price,
-      images: imagesUrl,
+      image: imagesUrl,
       category,
       subCategory,
-      sizes: parsedSizes,
+      sizes: JSON.parse(sizes),
       bestseller,
-      date,
-    });
+      date: Date.now(),
+    };
 
-    const product = await newProduct.save();
+    const product = new Product(productData);
+
+    await product.save();
 
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
-      product,
     });
   } catch (error) {
     return res.status(500).json({
@@ -79,20 +68,94 @@ const createProduct = async (req, res) => {
   }
 };
 
-// Get all products
-const getProducts = async (req, res) => {};
+/// Get all products
+const getProducts = async (req, res) => {
+  try {
+    const products = await Product.find();
+
+    // Check if products were found
+    if (products.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No products found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: products,
+    });
+  } catch (error) {
+    console.log(`Error ⛔ ${error}`);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching products.",
+      error: error.message,
+    });
+  }
+};
 
 // Get a single product by ID
-const getProductById = async (req, res) => {};
+const getProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
+    // Check if product was found
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "No product found with this ID.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    console.log(`Error ⛔ ${error}`);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching the product.",
+      error: error.message,
+    });
+  }
+};
 
 // Update a product by ID
 const updateProduct = async (req, res) => {};
 
 // Delete a product by ID
-const deleteProduct = async (req, res) => {};
+const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findByIdAndDelete(id);
+
+    // Check if product was found
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "No product found with this ID.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "The product has been deleted successfully.",
+    });
+  } catch (error) {
+    console.log(`Error ⛔ ${error}`);
+
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while deleting the product.",
+      error: error.message,
+    });
+  }
+};
 
 export {
-  uploadProductImages,
   createProduct,
   getProducts,
   getProductById,
